@@ -1,0 +1,10 @@
+{
+  "name": "jlpt-n4-sprint",
+  "version": "1.0.0",
+  "description": "JLPT N4 15-Day Express Grammar Sprint (J-15 to December 6)",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  }
+}
