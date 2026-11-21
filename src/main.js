@@ -52,13 +52,21 @@ import {
   setErrorsSubtab,
   getErrorsSubtab,
 } from './views/errorsView.js';
+import {
+  renderVocabKanji,
+  getVocabSubtabs,
+  setVocabSubtab,
+  getVocabSubtab,
+  setVocabSearchFocus,
+} from './views/vocabKanjiView.js';
 
 const state = loadState();
 let globalQuery = '';
 
 const MAIN_TABS = [
   { id: 'dashboard', icon: '📅', label: { fr: 'Plan', en: 'Plan' } },
-  { id: 'conjugation', icon: '📘', label: { fr: 'Conjugaison', en: 'Verbs' } },
+  { id: 'vocab', icon: '🈷️', label: { fr: 'Vocab & Kanji', en: 'Vocab & Kanji' } },
+  { id: 'conjugation', icon: '📘', label: { fr: 'Verbes', en: 'Verbs' } },
   { id: 'duels', icon: '⚔️', label: { fr: '23 Duels', en: '23 Duels' } },
   { id: 'radar', icon: '🎯', label: { fr: 'Pièges', en: 'Trap Radar' } },
   { id: 'errors', icon: '📓', label: { fr: 'Erreurs', en: 'Error Log' } },
@@ -103,7 +111,7 @@ function applyBodySettings() {
 
   if (searchInput) {
     searchInput.placeholder =
-      state.lang === 'en' ? 'Search a rule (たら, しか…)' : 'Chercher une règle (たら, しか…)';
+      state.lang === 'en' ? 'Search rule, kanji, vocab (たら, 会…)' : 'Chercher règle, kanji, mot (たら, 会…)';
   }
 }
 
@@ -150,6 +158,10 @@ function renderSubbar() {
   let activeSub = '';
 
   switch (state.activeTab) {
+    case 'vocab':
+      tabs = getVocabSubtabs(lang);
+      activeSub = getVocabSubtab();
+      break;
     case 'conjugation':
       tabs = getConjugationSubtabs(lang);
       activeSub = getConjugationSubtab();
@@ -192,6 +204,9 @@ function renderSubbar() {
     btn.addEventListener('click', () => {
       const id = btn.dataset.subbarId;
       switch (state.activeTab) {
+        case 'vocab':
+          setVocabSubtab(id);
+          break;
         case 'conjugation':
           setConjugationSubtab(id);
           break;
@@ -276,6 +291,8 @@ function renderGlobalSearchPopover() {
         navigate('duels', { duelId: picked.duelId });
       } else if (picked.radarTab) {
         navigate('radar', { radarTab: picked.radarTab });
+      } else if (picked.vocabFocus) {
+        navigate('vocab', { vocabFocus: picked.vocabFocus });
       }
     });
   });
@@ -598,6 +615,8 @@ function navigate(tabId, opts = {}) {
   saveState(state);
   if (tabId === 'duels') setDuelsFilter(opts);
   if (tabId === 'radar' && opts.radarTab) setRadarTab(opts.radarTab);
+  if (tabId === 'vocab' && opts.vocabFocus) setVocabSearchFocus(opts.vocabFocus);
+  if (tabId === 'vocab' && opts.subtab) setVocabSubtab(opts.subtab);
   hideGlobalSearchPopover();
   renderNav();
   renderSubbar();
@@ -607,6 +626,9 @@ function navigate(tabId, opts = {}) {
 
 function renderActiveView() {
   switch (state.activeTab) {
+    case 'vocab':
+      renderVocabKanji(viewRoot, ctx);
+      break;
     case 'conjugation':
       renderConjugation(viewRoot, ctx);
       break;

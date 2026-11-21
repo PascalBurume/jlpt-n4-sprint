@@ -1,5 +1,7 @@
 import { DUELS } from './duels.js';
 import { SIGNAL_WORDS, FORM_BEFORE_WORDS, NOUN_CONNECTORS } from './traps.js';
+import { N4_KANJI } from './kanji.js';
+import { N4_VOCAB } from './vocab.js';
 
 /**
  * Easy-to-understand step-by-step solving guides for each of the 23 Duels.
@@ -332,5 +334,50 @@ export function searchAllRules(rawQuery) {
     }
   }
 
-  return results.slice(0, 12);
+  // 5. Search 166 Kanji
+  let kanjiHits = 0;
+  for (const k of N4_KANJI) {
+    if (kanjiHits >= 4) break;
+    const hay = `${k.char} ${k.on} ${k.kun} ${k.meaning.en} ${k.meaning.fr} ${k.words.join(' ')}`.toLowerCase();
+    if (hay.includes(q)) {
+      kanjiHits += 1;
+      results.push({
+        type: 'kanji',
+        badge: `Kanji #${k.id}`,
+        vocabFocus: { subtab: 'kanji', query: k.char },
+        title: { fr: `${k.char} · ${k.meaning.fr}`, en: `${k.char} · ${k.meaning.en}` },
+        preview: `ON: ${k.on} · KUN: ${k.kun}`,
+        rule: {
+          fr: `${k.words.slice(0, 2).join(' · ')} — ${k.hint.fr}`,
+          en: `${k.words.slice(0, 2).join(' · ')} — ${k.hint.en}`,
+        },
+      });
+    }
+  }
+
+  // 6. Search 640 Vocabulary words
+  let vocabHits = 0;
+  for (const v of N4_VOCAB) {
+    if (vocabHits >= 5) break;
+    const hay = `${v.word} ${v.reading} ${v.kanjiHint} ${v.meaning.en} ${v.meaning.fr}`.toLowerCase();
+    if (hay.includes(q)) {
+      vocabHits += 1;
+      results.push({
+        type: 'vocab',
+        badge: `Vocab · ${v.type}`,
+        vocabFocus: { subtab: 'vocab', query: v.word },
+        title: {
+          fr: `${v.word}${v.reading !== v.word ? ` (${v.reading})` : ''}`,
+          en: `${v.word}${v.reading !== v.word ? ` (${v.reading})` : ''}`,
+        },
+        preview: `${v.meaning.fr} · ${v.meaning.en}`,
+        rule: {
+          fr: v.example.jp,
+          en: v.example.jp,
+        },
+      });
+    }
+  }
+
+  return results.slice(0, 14);
 }

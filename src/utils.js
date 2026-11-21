@@ -100,6 +100,8 @@ export function loadState() {
     activeTab: 'dashboard',
     completedBlocks: [],
     masteredDuels: [],
+    masteredVocab: [],
+    masteredKanji: [],
     solvedPackIds: [],
     dailyChecks: {},
     errors: [],

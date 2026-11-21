@@ -1,6 +1,10 @@
 import { STUDY_PLAN, DAILY_ROUTINE } from '../data/schedule.js';
 import { DUELS } from '../data/duels.js';
 import { GRAMMAR_QUESTIONS } from '../data/grammarQuestions.js';
+import { N4_VOCAB } from '../data/vocab.js';
+import { N4_KANJI } from '../data/kanji.js';
+import { N4_VERBS_160 } from '../data/verbs160.js';
+import { TOTAL_QUIZ_QUESTIONS } from './blitzView.js';
 import {
   ui,
   t,
@@ -251,10 +255,84 @@ export function renderDashboard(container, ctx) {
     </div>
   `;
 
+  const masteredVocabCount = (state.masteredVocab || []).length;
+  const masteredKanjiCount = (state.masteredKanji || []).length;
+
+  const packBankHtml = `
+    <section class="section-group">
+      <div class="section-header">
+        <h2 class="section-title">
+          ${ui({ fr: 'The N4 Pack · Banque complète intégrée', en: 'The N4 Pack · Full Integrated Bank' }, lang)}
+        </h2>
+      </div>
+      <div class="flow-card">
+        <div class="flow-row">
+          <div><span class="pill-tag pill-tag-violet">${N4_VOCAB.length} mots</span></div>
+          <div>
+            <div class="cell-primary">${ui({ fr: 'Vocabulaire JLPT N4 · 語彙', en: 'JLPT N4 Vocabulary · 語彙' }, lang)}</div>
+            <div class="cell-sub">${t({ fr: '640 mots avec furigana, kanji hors-N4, phrases d’exemple et flashcards.', en: '640 words with furigana, above-N4 kanji hints, example sentences & flashcards.' }, lang, true)}</div>
+          </div>
+          <div>
+            <div class="cell-primary">${masteredVocabCount} / ${N4_VOCAB.length}</div>
+            <div class="cell-sub">${ui({ fr: 'Maîtrisés', en: 'Mastered' }, lang)}</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn-violet-pill" data-open-vocab="vocab">+ ${ui({ fr: 'Vocabulaire', en: 'Open Vocab' }, lang)}</button>
+          </div>
+        </div>
+
+        <div class="flow-row">
+          <div><span class="pill-tag pill-tag-violet">${N4_KANJI.length} kanji</span></div>
+          <div>
+            <div class="cell-primary">${ui({ fr: 'Les 166 nouveaux Kanji N4 · 漢字', en: '166 New N4 Kanji · 漢字' }, lang)}</div>
+            <div class="cell-sub">${t({ fr: 'Lectures ON/KUN, mots composés audio, mnémotechniques EN/FR et flashcards.', en: 'ON/KUN readings, audio compound words, EN/FR memory hints & flashcards.' }, lang, true)}</div>
+          </div>
+          <div>
+            <div class="cell-primary">${masteredKanjiCount} / ${N4_KANJI.length}</div>
+            <div class="cell-sub">${ui({ fr: 'Maîtrisés', en: 'Mastered' }, lang)}</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn-violet-pill" data-open-vocab="kanji">+ ${ui({ fr: 'Kanji', en: 'Open Kanji' }, lang)}</button>
+          </div>
+        </div>
+
+        <div class="flow-row">
+          <div><span class="pill-tag">${N4_VERBS_160.length} verbes</span></div>
+          <div>
+            <div class="cell-primary">${ui({ fr: '160 verbes N4 × 12 formes · 動詞', en: '160 N4 Verbs × 12 Forms · 動詞' }, lang)}</div>
+            <div class="cell-sub">${t({ fr: 'Tables A & B complètes + Verb Speed Gym sur tous les verbes du pack.', en: 'Full Tables A & B + Verb Speed Gym powered by all 160 pack verbs.' }, lang, true)}</div>
+          </div>
+          <div>
+            <div class="cell-primary">160 × 12</div>
+            <div class="cell-sub">${ui({ fr: 'Formes', en: 'Forms' }, lang)}</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn-ghost-pill" data-goto-tab="conjugation">${ui({ fr: 'Ouvrir Verbes', en: 'Open Verbs' }, lang)} →</button>
+          </div>
+        </div>
+
+        <div class="flow-row">
+          <div><span class="pill-tag">${TOTAL_QUIZ_QUESTIONS} Q</span></div>
+          <div>
+            <div class="cell-primary">${ui({ fr: 'Banque d’exercices A–H + Test éclair', en: 'Exam Exercise Bank A–H + Blitz Test' }, lang)}</div>
+            <div class="cell-sub">${t({ fr: 'Lecture/Écriture Kanji, Contexte, Sens, Verbes et 106 questions Grammaire.', en: 'Kanji Reading/Writing, Context, Meaning, Verbs & 106 Grammar questions.' }, lang, true)}</div>
+          </div>
+          <div>
+            <div class="cell-primary">${state.blitzHistory.length}</div>
+            <div class="cell-sub">${ui({ fr: 'Tests faits', en: 'Completed' }, lang)}</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn-ghost-pill" data-goto-tab="blitz">${ui({ fr: 'Tests & Quiz', en: 'Tests & Quiz' }, lang)} →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+
   container.innerHTML =
     dashSubtab === 'roadmap'
       ? `${roadmapHtml}${summaryHtml}`
-      : `${statStripHtml}${todayCardHtml}${roadmapHtml}${summaryHtml}`;
+      : `${statStripHtml}${todayCardHtml}${packBankHtml}${roadmapHtml}${summaryHtml}`;
 
   // Timer wiring
   const displayEl = container.querySelector('#sprint-timer-display');
@@ -352,5 +430,9 @@ export function renderDashboard(container, ctx) {
 
   container.querySelectorAll('[data-goto-tab]').forEach((btn) => {
     btn.addEventListener('click', () => navigate(btn.dataset.gotoTab));
+  });
+
+  container.querySelectorAll('[data-open-vocab]').forEach((btn) => {
+    btn.addEventListener('click', () => navigate('vocab', { subtab: btn.dataset.openVocab }));
   });
 }

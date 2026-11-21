@@ -1,5 +1,6 @@
 import { BLITZ_TEST } from '../data/blitzTest.js';
 import { GRAMMAR_QUESTIONS } from '../data/grammarQuestions.js';
+import { PACK_EXERCISES } from '../data/packExercises.js';
 import { renderGuidanceSection, wireGuidanceEvents } from '../components/guidanceWidget.js';
 import {
   ui,
@@ -12,10 +13,89 @@ import {
   shuffle,
 } from '../utils.js';
 
+export const QUIZ_BANKS = [
+  {
+    id: 'blitz',
+    code: '⚡',
+    label: { fr: 'Test éclair', en: 'Blitz Test' },
+    sub: { fr: '32 Q · Sprint J-4', en: '32 Q · D-4 Sprint' },
+    instruction: { fr: 'Complète la phrase (grammaire N4).', en: 'Fill in the blank (N4 grammar).' },
+    count: BLITZ_TEST.length,
+    isGrammar: true,
+  },
+  {
+    id: 'pack',
+    code: 'H',
+    label: { fr: 'Grammaire N4', en: 'Grammar (問題1)' },
+    sub: { fr: '106 Q · 1 par point', en: '106 Q · 1 per point' },
+    instruction: { fr: 'Choisis la bonne forme grammaticale.', en: 'Choose the right grammar form.' },
+    count: GRAMMAR_QUESTIONS.length,
+    isGrammar: true,
+  },
+  {
+    id: 'A',
+    code: 'A',
+    label: { fr: 'Lecture Kanji', en: 'Kanji Reading' },
+    sub: { fr: '50 Q · 問題1', en: '50 Q · 問題1' },
+    instruction: { fr: 'Choisis la bonne lecture en hiragana.', en: 'Choose the correct hiragana reading.' },
+    count: PACK_EXERCISES.A.length,
+  },
+  {
+    id: 'B',
+    code: 'B',
+    label: { fr: 'Écriture Kanji', en: 'Kanji Writing' },
+    sub: { fr: '50 Q · 問題2', en: '50 Q · 問題2' },
+    instruction: { fr: 'Choisis la bonne écriture en kanji.', en: 'Choose the correct kanji spelling.' },
+    count: PACK_EXERCISES.B.length,
+  },
+  {
+    id: 'C',
+    code: 'C',
+    label: { fr: 'Contexte', en: 'Fill the Context' },
+    sub: { fr: '40 Q · 問題3', en: '40 Q · 問題3' },
+    instruction: { fr: 'Quel mot convient le mieux dans la phrase ?', en: 'Which word best fits the sentence?' },
+    count: PACK_EXERCISES.C.length,
+  },
+  {
+    id: 'D',
+    code: 'D',
+    label: { fr: 'Sens des mots', en: 'Word Meaning' },
+    sub: { fr: '50 Q · Vocabulaire', en: '50 Q · Vocabulary' },
+    instruction: { fr: 'Choisis le sens exact de ce mot N4.', en: 'Choose the exact meaning of this N4 word.' },
+    count: PACK_EXERCISES.D.length,
+  },
+  {
+    id: 'E',
+    code: 'E',
+    label: { fr: 'Formes verbales', en: 'Verb Forms' },
+    sub: { fr: '50 Q · Conjugaison', en: '50 Q · Conjugation' },
+    instruction: { fr: 'Choisis la conjugaison correcte.', en: 'Choose the right conjugated verb form.' },
+    count: PACK_EXERCISES.E.length,
+  },
+  {
+    id: 'F',
+    code: 'F',
+    label: { fr: 'Sens des Kanji', en: 'Kanji Meaning' },
+    sub: { fr: '30 Q · Kanji N4', en: '30 Q · N4 Kanji' },
+    instruction: { fr: 'Choisis le sens de ce kanji N4.', en: 'Choose the meaning of this N4 kanji.' },
+    count: PACK_EXERCISES.F.length,
+  },
+  {
+    id: 'G',
+    code: 'G',
+    label: { fr: 'Lecture composés', en: 'Kanji Words Reading' },
+    sub: { fr: '30 Q · Mots Kanji', en: '30 Q · Kanji Words' },
+    instruction: { fr: 'Choisis la lecture de ce mot en kanji.', en: 'Choose the reading of this kanji word.' },
+    count: PACK_EXERCISES.G.length,
+  },
+];
+
+export const TOTAL_QUIZ_QUESTIONS = QUIZ_BANKS.reduce((acc, b) => acc + b.count, 0);
+
 let blitzSubtab = 'test'; // 'test' | 'history'
 let phase = 'intro'; // 'intro' | 'running' | 'result'
-let bank = 'blitz'; // 'blitz' | 'pack'
-let selectedSize = 32; // 10 | 20 | 32 | 50
+let bank = 'blitz';
+let selectedSize = 32;
 let mode = 'exam'; // 'exam' | 'practice'
 let activeQuestions = [];
 let qIndex = 0;
@@ -28,9 +108,65 @@ let showBlitzHint = false;
 let showBlitzSearch = false;
 let blitzGuideQuery = '';
 
+function getBankMeta(bankId) {
+  return QUIZ_BANKS.find((b) => b.id === bankId) || QUIZ_BANKS[0];
+}
+
+function getSizeChoices(bankId) {
+  const meta = getBankMeta(bankId);
+  const max = meta.count;
+  const presets = [
+    { n: 10, lbl: { fr: 'Express · ~8 min', en: 'Express · ~8 min' } },
+    { n: 20, lbl: { fr: 'Standard · ~16 min', en: 'Standard · ~16 min' } },
+  ];
+  if (max > 32) {
+    presets.push({ n: 30, lbl: { fr: 'Série longue · 30 Q', en: 'Long Set · 30 Q' } });
+  }
+  presets.push({
+    n: max,
+    lbl:
+      bankId === 'blitz'
+        ? { fr: 'Complet J-4 · 32 Q', en: 'Full D-4 · 32 Q' }
+        : { fr: `Complet · ${max} Q`, en: `Full Set · ${max} Q` },
+  });
+  return presets;
+}
+
+function loadBankQuestions(bankId) {
+  if (bankId === 'blitz') {
+    return BLITZ_TEST.map((item) => ({
+      ...item,
+      uid: `blitz_${item.id}`,
+      bankId,
+      refLabel: `Test éclair #${item.id}`,
+    }));
+  }
+  if (bankId === 'pack') {
+    return GRAMMAR_QUESTIONS.map((item) => ({
+      ...item,
+      uid: `pack_q${item.id}`,
+      bankId,
+      refLabel: `N4 Pack H · Q${item.id}`,
+    }));
+  }
+  const meta = getBankMeta(bankId);
+  const list = PACK_EXERCISES[bankId] || [];
+  return list.map((item) => ({
+    id: item.num,
+    uid: `pack_${bankId}_${item.num}`,
+    bankId,
+    refLabel: `${meta.code} · ${meta.label.en} #${item.num}`,
+    sentence: item.prompt,
+    options: item.options,
+    answer: item.answer,
+    explanation: { fr: item.explanation, en: item.explanation },
+    duelId: null,
+  }));
+}
+
 export function getBlitzSubtabs(lang, state) {
   return [
-    { id: 'test', label: ui({ fr: 'Configurer un test', en: 'Configure Test' }, lang) },
+    { id: 'test', label: ui({ fr: 'Configurer un test', en: 'Configure Test' }, lang), count: TOTAL_QUIZ_QUESTIONS },
     { id: 'history', label: ui({ fr: 'Historique', en: 'Past Attempts' }, lang), count: state.blitzHistory.length },
   ];
 }
@@ -71,7 +207,19 @@ function formatSentenceWithBlank(sentence, fillHtml = '___') {
   const slot = `<span class="blank-slot">${fillHtml}</span>`;
   if (rendered.includes('___')) return rendered.replace('___', slot);
   if (rendered.includes('（　）')) return rendered.replace('（　）', slot);
+  if (rendered.includes('（ ）')) return rendered.replace('（ ）', slot);
   return rendered;
+}
+
+function getSpeakTextForQuestion(q) {
+  if (q.bankId === 'A' || q.bankId === 'G') return q.options[q.answer];
+  if (q.bankId === 'B' || q.bankId === 'D') return q.sentence.split(' ')[0];
+  if (q.bankId === 'E') return q.options[q.answer];
+  if (q.bankId === 'F') return q.sentence;
+  return q.sentence
+    .replace('___', q.options[q.answer])
+    .replace('（　）', q.options[q.answer])
+    .replace('（ ）', q.options[q.answer]);
 }
 
 function finishBlitz(ctx) {
@@ -86,8 +234,8 @@ function finishBlitz(ctx) {
       recordError(state, {
         key: q.uid,
         source: bank,
-        refLabel: bank === 'blitz' ? `Test éclair #${q.id}` : `N4 Pack Q${q.id}`,
-        duelId: q.duelId,
+        refLabel: q.refLabel,
+        duelId: q.duelId || null,
         sentence: q.sentence,
         options: q.options,
         answer: q.answer,
@@ -103,7 +251,7 @@ function finishBlitz(ctx) {
     mode,
     bank,
   });
-  state.blitzHistory = state.blitzHistory.slice(0, 15);
+  state.blitzHistory = state.blitzHistory.slice(0, 20);
   saveState(state);
   refreshBadges();
   phase = 'result';
@@ -131,12 +279,13 @@ export function renderBlitz(container, ctx) {
               : state.blitzHistory
                   .map((h, idx) => {
                     const pct = Math.round((h.score / h.total) * 100);
+                    const meta = getBankMeta(h.bank);
                     return `
                       <div class="flow-row">
                         <div><span class="pill-tag">#${state.blitzHistory.length - idx}</span></div>
                         <div>
                           <div class="cell-primary">
-                            ${h.bank === 'pack' ? 'N4 Pack' : 'Test éclair'} · ${h.total} Q
+                            ${meta.code} · ${ui(meta.label, lang)} · ${h.total} Q
                           </div>
                           <div class="cell-sub">${h.date} · ${h.mode === 'exam' ? ui({ fr: 'Examen', en: 'Exam' }, lang) : ui({ fr: 'Entraînement', en: 'Practice' }, lang)}</div>
                         </div>
@@ -168,41 +317,39 @@ export function renderBlitz(container, ctx) {
 
   if (phase === 'intro') {
     stopBlitzTimer();
-    const sizeChoices =
-      bank === 'blitz'
-        ? [
-            { n: 10, lbl: { fr: 'Express · ~8 min', en: 'Express · ~8 min' } },
-            { n: 20, lbl: { fr: 'Moyen · ~18 min', en: 'Medium · ~18 min' } },
-            { n: 32, lbl: { fr: 'Complet J-4 · 32 Q', en: 'Full D-4 · 32 Q' } },
-          ]
-        : [
-            { n: 10, lbl: { fr: 'Express · ~8 min', en: 'Express · ~8 min' } },
-            { n: 20, lbl: { fr: 'Standard · ~18 min', en: 'Standard · ~18 min' } },
-            { n: 32, lbl: { fr: 'Simul. N4 · ~30 min', en: 'N4 Sim · ~30 min' } },
-            { n: 50, lbl: { fr: 'Endurance · 50 Q', en: 'Endurance · 50 Q' } },
-          ];
+    const activeBankMeta = getBankMeta(bank);
+    const sizeChoices = getSizeChoices(bank);
 
     if (!sizeChoices.some((s) => s.n === selectedSize)) {
-      selectedSize = sizeChoices[sizeChoices.length - 1].n;
+      selectedSize = sizeChoices[Math.min(1, sizeChoices.length - 1)].n;
     }
 
     container.innerHTML = `
       <section class="section-group">
         <div class="section-header">
-          <h2 class="section-title">${ui({ fr: '1. Choisis la banque de questions & la taille du test', en: '1. Choose Question Bank & Test Size' }, lang)}</h2>
-          <div class="section-filters">
-            <button class="filter-pill-btn ${bank === 'blitz' ? 'active' : ''}" data-bank="blitz">
-              ${ui({ fr: 'Test éclair (32 Q)', en: 'Blitz Test (32 Q)' }, lang)}
-            </button>
-            <button class="filter-pill-btn ${bank === 'pack' ? 'active' : ''}" data-bank="pack">
-              ${ui({ fr: 'Grand Livret N4 (106 Q)', en: 'N4 Pack Bank (106 Q)' }, lang)}
-            </button>
-          </div>
+          <h2 class="section-title">
+            ${ui({ fr: '1. Choisis ta section d’examen (The N4 Pack · 438 questions)', en: '1. Choose Your Exam Section (The N4 Pack · 438 Questions)' }, lang)}
+          </h2>
         </div>
 
         <div class="flow-card flow-card-pad">
-          <div class="cell-sub" style="margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">
-            ${ui({ fr: 'Taille du test (nombre de questions)', en: 'Test Size (Number of Questions)' }, lang)}
+          <div class="bank-picker-grid">
+            ${QUIZ_BANKS.map(
+              (b) => `
+              <button type="button" class="bank-tile ${bank === b.id ? 'active' : ''}" data-bank="${b.id}">
+                <div class="bank-tile-head">
+                  <span class="bank-code-badge">${b.code}</span>
+                  <span class="bank-count">${b.count} Q</span>
+                </div>
+                <div class="bank-tile-title">${ui(b.label, lang)}</div>
+                <div class="bank-tile-sub">${ui(b.sub, lang)}</div>
+              </button>
+            `
+            ).join('')}
+          </div>
+
+          <div class="cell-sub" style="margin:20px 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">
+            ${ui({ fr: `Taille du test · ${activeBankMeta.label.fr}`, en: `Test Size · ${activeBankMeta.label.en}` }, lang)}
           </div>
           <div class="test-size-grid" style="grid-template-columns:repeat(${sizeChoices.length}, minmax(0, 1fr));">
             ${sizeChoices
@@ -259,15 +406,15 @@ export function renderBlitz(container, ctx) {
 
       <div class="summary-bar">
         <div class="summary-left">
-          <span><strong>85%+ (28/32)</strong> ${ui({ fr: 'Tu es prêt !', en: 'Ready!' }, lang)}</span>
+          <span><strong>85%+</strong> ${ui({ fr: 'Tu es prêt !', en: 'Ready!' }, lang)}</span>
           <span>·</span>
-          <span><strong>70–84% (22–27)</strong> ${ui({ fr: 'Relis les duels manqués', en: 'Review missed duels' }, lang)}</span>
+          <span><strong>70–84%</strong> ${ui({ fr: 'Revois tes erreurs', en: 'Review mistakes' }, lang)}</span>
           <span>·</span>
-          <span><strong>&lt;70%</strong> ${ui({ fr: 'Refais les cartes Q', en: 'Redo Pack cards' }, lang)}</span>
+          <span><strong>438 Q</strong> ${ui({ fr: 'couvrant Kanji, Vocab, Verbes & Grammaire N4', en: 'covering N4 Kanji, Vocab, Verbs & Grammar' }, lang)}</span>
         </div>
         <div class="summary-right">
-          <span class="summary-label">${ui({ fr: 'Taille choisie :', en: 'Selected Size:' }, lang)}</span>
-          <span class="summary-total">${selectedSize} Q</span>
+          <span class="summary-label">${ui({ fr: 'Sélection :', en: 'Selected:' }, lang)}</span>
+          <span class="summary-total">${activeBankMeta.code} · ${selectedSize} Q</span>
         </div>
       </div>
     `;
@@ -275,7 +422,8 @@ export function renderBlitz(container, ctx) {
     container.querySelectorAll('[data-bank]').forEach((btn) => {
       btn.addEventListener('click', () => {
         bank = btn.dataset.bank;
-        selectedSize = bank === 'blitz' ? 32 : 20;
+        const choices = getSizeChoices(bank);
+        selectedSize = bank === 'blitz' ? 32 : choices[Math.min(1, choices.length - 1)].n;
         renderBlitz(container, ctx);
       });
     });
@@ -289,14 +437,9 @@ export function renderBlitz(container, ctx) {
 
     const launch = (selectedMode) => {
       mode = selectedMode;
-      const source =
-        bank === 'blitz'
-          ? BLITZ_TEST.map((item) => ({ ...item, uid: `blitz_${item.id}` }))
-          : GRAMMAR_QUESTIONS.map((item) => ({ ...item, uid: `pack_q${item.id}` }));
-
-      // Keep exact sequential order if taking Full 32Q Blitz Test; shuffle for smaller/pack quizzes
+      const source = loadBankQuestions(bank);
       activeQuestions =
-        bank === 'blitz' && selectedSize === 32
+        bank === 'blitz' && selectedSize === BLITZ_TEST.length
           ? source
           : shuffle(source).slice(0, selectedSize);
 
@@ -304,6 +447,8 @@ export function renderBlitz(container, ctx) {
       answers = {};
       totalSeconds = 0;
       qSeconds = 0;
+      showBlitzHint = false;
+      showBlitzSearch = false;
       phase = 'running';
       startBlitzTimer();
       renderBlitz(container, ctx);
@@ -316,6 +461,7 @@ export function renderBlitz(container, ctx) {
 
   if (phase === 'running') {
     const q = activeQuestions[qIndex];
+    const meta = getBankMeta(q.bankId);
     const chosen = answers[q.uid];
     const hasAnswered = chosen !== undefined;
     const pct = Math.round(((qIndex + 1) / activeQuestions.length) * 100);
@@ -327,12 +473,14 @@ export function renderBlitz(container, ctx) {
         ? renderRuby(q.options[chosen])
         : '　　';
 
+    const isBigSinglePrompt = ['A', 'B', 'F', 'G'].includes(q.bankId);
+
     container.innerHTML = `
       <div class="quiz-studio">
         <div class="section-header">
           <h2 class="section-title">
             Question ${qIndex + 1} / ${activeQuestions.length}
-            <span class="section-subtitle">${bank === 'blitz' ? 'Test éclair' : 'N4 Pack'} · ${mode === 'exam' ? 'Exam' : 'Practice'}</span>
+            <span class="section-subtitle">${meta.code} · ${ui(meta.label, lang)} · ${mode === 'exam' ? 'Exam' : 'Practice'}</span>
           </h2>
           <div class="section-filters" style="font-size:0.86em;color:var(--text-subtle);">
             <span id="blitz-q-clock" class="${qSeconds > 60 ? 'pace-warn' : ''}">${formatTime(qSeconds)} / 01:00</span>
@@ -347,10 +495,16 @@ export function renderBlitz(container, ctx) {
           </div>
 
           <div class="flow-card-pad">
-            <div class="quiz-sentence">${formatSentenceWithBlank(q.sentence, fillText)}</div>
+            <div class="cell-sub" style="margin-bottom:10px;font-weight:600;color:var(--brand);">
+              ${ui(meta.instruction, lang)}
+            </div>
+
+            <div class="quiz-sentence ${isBigSinglePrompt ? 'quiz-sentence-large' : ''}">
+              ${formatSentenceWithBlank(q.sentence, fillText)}
+            </div>
 
             ${
-              mode === 'practice'
+              mode === 'practice' && q.duelId
                 ? renderGuidanceSection({
                     duelId: q.duelId,
                     lang,
@@ -424,7 +578,7 @@ export function renderBlitz(container, ctx) {
       });
     });
 
-    if (mode === 'practice') {
+    if (mode === 'practice' && q.duelId) {
       wireGuidanceEvents(container, {
         onToggleHint() {
           showBlitzHint = !showBlitzHint;
@@ -450,7 +604,7 @@ export function renderBlitz(container, ctx) {
     }
 
     container.querySelector('#blitz-speak-full')?.addEventListener('click', () => {
-      speakJP(q.sentence.replace('___', q.options[q.answer]).replace('（　）', q.options[q.answer]));
+      speakJP(getSpeakTextForQuestion(q));
     });
 
     container.querySelector('#blitz-quit')?.addEventListener('click', () => {
@@ -496,8 +650,8 @@ export function renderBlitz(container, ctx) {
     pct >= 85
       ? { fr: 'Excellent score : tu es prêt pour le N4 !', en: 'Great score: you are ready for N4!' }
       : pct >= 68
-      ? { fr: 'Bon niveau : relis les duels de tes erreurs.', en: 'Solid progress: review the duels for your mistakes.' }
-      : { fr: 'À renforcer : refais les cartes Q pour ces duels.', en: 'Needs work: redo the Pack cards for these duels.' };
+      ? { fr: 'Bon niveau : revois tes erreurs dans le Carnet.', en: 'Solid progress: review your mistakes in the Error Log.' }
+      : { fr: 'À renforcer : refais cette section en mode Entraînement.', en: 'Needs work: retry this section in Practice mode.' };
 
   const displayList = resultFilter === 'wrong' ? wrongList : activeQuestions;
 
@@ -535,7 +689,7 @@ export function renderBlitz(container, ctx) {
         ${displayList
           .map((q) => {
             const isOk = answers[q.uid] === q.answer;
-            const fullSentence = q.sentence.replace('___', q.options[q.answer]).replace('（　）', q.options[q.answer]);
+            const speakTxt = getSpeakTextForQuestion(q);
             return `
               <div class="flow-row-compact">
                 <div>
@@ -546,12 +700,13 @@ export function renderBlitz(container, ctx) {
                 <div>
                   <div class="cell-jp">
                     ${formatSentenceWithBlank(q.sentence, renderRuby(q.options[q.answer]))}
+                    ${!q.sentence.includes('___') && !q.sentence.includes('（') ? `<span style="color:var(--brand);margin-left:8px;">→ ${renderRuby(q.options[q.answer])}</span>` : ''}
                   </div>
                   <div class="cell-sub">${t(q.explanation, lang, true)}</div>
                 </div>
                 <div class="row-actions">
-                  <button class="circle-icon-btn" data-speak="${fullSentence}" title="Listen">🔊</button>
-                  <button class="btn-ghost-pill" data-jump-duel="${q.duelId}">Duel #${q.duelId}</button>
+                  <button class="circle-icon-btn" data-speak="${speakTxt}" title="Listen">🔊</button>
+                  ${q.duelId ? `<button class="btn-ghost-pill" data-jump-duel="${q.duelId}">Duel #${q.duelId}</button>` : ''}
                 </div>
               </div>
             `;
